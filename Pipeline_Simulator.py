@@ -206,14 +206,14 @@ class Processor:
             print(f"F{i}: {self.fp_registers[i]}")
 
     def run_pipeline(self):
-
-        while self.instructions != []:
+        i = 0
+        while i < len(self.instructions) != []:
             self.fetched_instruction = self.fetch_instruction()
             self.decoded_instruction = self.decode_instruction(self.fetched_instruction)
             self.executed_instruction = self.execute_instruction(self.decoded_instruction)
             self.memory_instruction = self.memory_instruction(self.executed_instruction)
             self.writeback_instruction = self.writeback_instruction(self.memory_instruction)
-            self.clock_cycle += 1
+            i += 1
 
 
 if __name__ == '__main__':
