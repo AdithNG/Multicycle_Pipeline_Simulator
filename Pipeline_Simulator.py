@@ -9,11 +9,12 @@ class Processor:
         self.memory = [45, 12, 0, 92, 10, 135, 254, 127, 18, 4, 55, 8, 2, 98, 13, 5, 233, 158, 167]
         self.branch_predictions = {}  # Stores branch predictions
         self.instructions = []
-        self.fetched_instruction = []
-        self.decoded_instruction = []
-        self.executed_instruction = []
+        self.fetched_instruction = ""
+        self.decoded_instruction = ""
+        self.executed_instruction = ""
         self.memory_instruction = ""
-        self.writeback_instruction = []
+        self.writeback_instruction = ""
+        self.busy_registers = []
         self.clock_cycle = 0
 
     def execute_fp_add(self, dest_reg, src_reg1, src_reg2):
@@ -205,14 +206,14 @@ class Processor:
             print(f"F{i}: {self.fp_registers[i]}")
 
     def run_pipeline(self):
-        pc = 0
-        while pc < len(self.memory):
-            self.fetched_instruction = self.fetch_instruction(pc)
+
+        while self.instructions != []:
+            self.fetched_instruction = self.fetch_instruction()
             self.decoded_instruction = self.decode_instruction(self.fetched_instruction)
             self.executed_instruction = self.execute_instruction(self.decoded_instruction)
             self.memory_instruction = self.memory_instruction(self.executed_instruction)
             self.writeback_instruction = self.writeback_instruction(self.memory_instruction)
-            pc += 1
+            self.clock_cycle += 1
 
 
 if __name__ == '__main__':
