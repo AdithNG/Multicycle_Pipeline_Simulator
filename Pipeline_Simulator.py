@@ -43,9 +43,9 @@ class Processor:
         elif type == 2:
             self.int_registers[dest_reg] = mem_address
         elif type == 4:
-            self.fp_registers[dest_reg] = self.int_registers[mem_address]
+            self.fp_registers[dest_reg] = self.memory[self.int_registers[mem_address]]
         elif type == 5:
-            self.int_registers[dest_reg] = self.int_registers[mem_address]
+            self.int_registers[dest_reg] = self.memory[self.int_registers[mem_address]]
 
     def execute_store(self, src_reg, mem_address, type):
         # Simulating a store operation to memory
