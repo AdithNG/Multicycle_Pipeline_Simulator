@@ -193,9 +193,9 @@ class Processor:
         # that hold the fetched, decoded, and executed instructions
 
         # Example implementation assuming a simple 3-stage pipeline
-        self.fetched_instruction = []  # Or pop the last element?
-        self.decoded_instruction = []
-        self.executed_instruction = []
+        self.fetched_instruction = ""
+        self.decoded_instruction = ""
+        self.executed_instruction = ""
 
     def print_registers(self):
         print("Integer Registers:")
@@ -209,9 +209,9 @@ class Processor:
         i = 0
         while i < len(self.instructions) != []:
             self.fetched_instruction = self.fetch_instruction()
-            self.decoded_instruction = self.decode_instruction(self.fetched_instruction)
-            self.executed_instruction = self.execute_instruction(self.decoded_instruction)
-            self.memory_instruction = self.memory_instruction(self.executed_instruction)
+            self.decoded_instruction = self.decode_instruction(self.fetch_instruction)
+            self.executed_instruction = self.execute_instruction(self.decode_instruction)
+            self.memory_instruction = self.memory_instruction(self.execute_instruction)
             self.writeback_instruction = self.writeback_instruction(self.memory_instruction)
             i += 1
 
