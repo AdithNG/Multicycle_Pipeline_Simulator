@@ -44,6 +44,8 @@ class Processor:
             self.int_registers[dest_reg] = mem_address
         elif type == 4:
             self.fp_registers[dest_reg] = self.int_registers[mem_address]
+        elif type == 5:
+            self.int_registers[dest_reg] = self.int_registers[mem_address]
 
     def execute_store(self, src_reg, mem_address, type):
         # Simulating a store operation to memory
@@ -92,17 +94,24 @@ class Processor:
 
         elif instruction == "LW":
             offset = int(registers[1][:registers[1].find("(")])
-            src_addr = int(registers[1][registers[1].find("(") + 2: registers[1].find(")")])
-            self.execute_load(dest_reg, (src_addr + offset) % 19, 1)
+            # If src_addr is a register
+            if registers[1][registers[1].find("(") + 1] == "$":
+                src_addr = registers[1][registers[1].find("(") + 2: registers[1].find(")")]
+                self.execute_load(dest_reg, (src_addr + offset) % 35, 5)
+
+            # If src_addr is a memory location
+            else:
+                src_addr = int(registers[1][registers[1].find("(") + 1: registers[1].find(")")])
+                self.execute_load(dest_reg, (src_addr + offset) % 19, 1)
 
         elif instruction == "S.D":
             offset = int(registers[1][:registers[1].find("(")])
-            src_addr = int(registers[1][registers[1].find("(") + 2: registers[1].find(")")])
+            src_addr = int(registers[1][registers[1].find("(") + 1: registers[1].find(")")])
             self.execute_load(dest_reg, (src_addr + offset) % 19, 0)
 
         elif instruction == "SW":
             offset = int(registers[1][:registers[1].find("(")])
-            src_addr = int(registers[1][registers[1].find("(") + 2: registers[1].find(")")])
+            src_addr = int(registers[1][registers[1].find("(") + 1: registers[1].find(")")])
             self.execute_load(dest_reg, (src_addr + offset) % 19, 1)
 
         elif instruction == "ADD":
