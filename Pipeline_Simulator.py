@@ -1,6 +1,6 @@
 nonexecution_stages = ["if", "id", "mem", "wb"]
 additionCycle = ["if", "id", "A1", "A2", "mem", "wb"] 
-subtractionCycle = ["if", "id", "S1", "S2", "mem", "wb"]
+subtractionCycle = ["if", "id", "A1", "A2", "mem", "wb"]
 multiplicationCycle = ["if", "id", "M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9", "M10", "mem", "wb"]
 divisionCycle = ["if", "id"] + ["D"+str(i) for i in range(1, 41)] + ["mem", "wb"]
 oneCycle = ["if", "id", "ex", "mem", "wb"]
@@ -97,7 +97,7 @@ class Processor:
             offset = int(registers[1][:registers[1].find("(")])
 
             # If src_addr is a register
-            if registers[1][registers[1].find("(") + 1] == "$" :
+            if registers[1][registers[1].find("(") + 1] == "$":
                 src_addr = registers[1][registers[1].find("(") + 2: registers[1].find(")")]
                 self.execute_load(dest_reg, (src_addr + offset) % 35, 4)
 
