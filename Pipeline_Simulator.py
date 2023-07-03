@@ -6,6 +6,30 @@ divisionCycle = ["if", "id"] + ["D"+str(i) for i in range(1, 41)] + ["mem", "wb"
 oneCycle = ["if", "id", "ex", "mem", "wb"]
 
 
+class Instruction:
+    def __init__(self, instructionName, parameter1, parameter2 = None, parameter3 = None,):
+        self.instruction = instructionName
+        
+        self.parameter1 = parameter1
+        self.parameter2 = parameter2
+        self.parameter3 = parameter3
+    
+    def decode(self):
+        
+        if(self.instruction == "L.D"):
+            self.destRegister = self.parameter1
+            self.offset = self.parameter2
+            self.sourceAddr = self.parameter3
+        elif(self.instruction = "S.D"):
+            self.sourceRegister = self.parameter1
+            self.offset = self.parameter2
+            self.destAddr = self.parameter3
+        elif:
+
+
+
+
+
 class Processor:
     def __init__(self):
         self.fp_adder_pipeline_cycles = 2
@@ -17,6 +41,7 @@ class Processor:
         self.memory = [45, 12, 0, 92, 10, 135, 254, 127, 18, 4, 55, 8, 2, 98, 13, 5, 233, 158, 167]
         self.branch_predictions = {}  # Stores branch predictions
         self.instructions = []
+        self.instruction_objects = []
         self.fetched_instruction = ""
         self.decoded_instruction = ""
         self.executed_instruction = ""
@@ -32,7 +57,15 @@ class Processor:
         self.pipeLineResults = []
 
 
-
+    def fetch_instruction(self, Index):
+        self.fetched_instruction = self.instructions[Index]
+        return self.fetched_instruction
+    
+    def decode_instruction(self, line):
+        self.decoded_instruction = line
+        Instruction instruction 
+    
+    
     def execute_fp_add(self, dest_reg, src_reg1, src_reg2):
         self.fp_registers[dest_reg] = self.fp_registers[src_reg1] + self.fp_registers[src_reg2]
 
@@ -91,13 +124,12 @@ class Processor:
         registers = line[1].split(",")
         instruction = line[0]
         dest_reg = int(registers[0][1])
-        self.busy_registers.append(registers[1])
 
         if instruction == "L.D":
             offset = int(registers[1][:registers[1].find("(")])
 
             # If src_addr is a register
-            if registers[1][registers[1].find("(") + 1] == "$":
+            if registers[1][registers[1].find("(") + 1] == "$" :
                 src_addr = registers[1][registers[1].find("(") + 2: registers[1].find(")")]
                 self.execute_load(dest_reg, (src_addr + offset) % 35, 4)
 
@@ -246,7 +278,9 @@ if __name__ == '__main__':
     # Process the instruction file
     instructions = processor.process_instruction_file(filename)
     print(processor.instructions)
-
+    
+    processor.run_pipeline()
+"""
     processor.fp_registers[1] = 2.5
     processor.fp_registers[2] = 3.7
     processor.execute_fp_add(0, 1, 2)
@@ -256,3 +290,4 @@ if __name__ == '__main__':
     processor.int_registers[4] = 5
     processor.execute_int_sub(5, 3, 4)
     print(processor.int_registers[5])  # Output: 5
+"""
