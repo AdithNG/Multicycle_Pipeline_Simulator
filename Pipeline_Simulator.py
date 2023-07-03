@@ -42,6 +42,7 @@ class Processor:
         self.branch_predictions = {}  # Stores branch predictions
         self.instructions = []
         self.instruction_objects = []
+        self.next_instruction = 0
         self.fetched_instruction = ""
         self.decoded_instruction = ""
         self.executed_instruction = ""
@@ -63,7 +64,7 @@ class Processor:
     
     def decode_instruction(self, line):
         self.decoded_instruction = line
-        Instruction instruction 
+        instruction = Instruction()
     
     
     def execute_fp_add(self, dest_reg, src_reg1, src_reg2):
@@ -255,19 +256,37 @@ class Processor:
             print(f"F{i}: {self.fp_registers[i]}")
 
     def run_pipeline(self):
-        i = 0
 
-        """
-        while i < len(self.instructions) != []:
-            self.fetched_instruction = self.fetch_instruction()
-            self.decoded_instruction = self.decode_instruction(self.fetched_instruction)
-            self.executed_instruction = self.execute_instruction(self.decoded_instruction)
-            self.memory_instruction = self.memory_instruction(self.executed_instruction)
-            self.writeback_instruction = self.writeback_instruction(self.memory_instruction)
-            i += 1
-        """
-        
+        self.pipeLineResults = [[self.instructions[j]] for j in range(len(self.instructions))]
 
+        while (self.fetched_instruction != "" and self.decoded_instruction != "" and self.executed_instruction != "" and self.memory_instruction != "" and self.writeback_instruction != "") or self.next_instruction == 0:
+            [row.append("  ") for row in self.pipeLineResults]
+
+            self.writeback_instruction(self.memory_instruction)
+            self.memory_instruction(self.executed_instruction)
+            self.execute_instruction(self.decoded_instruction)
+            self.decode_instruction(self.fetched_instruction)
+            self.fetch_instruction(self.next_instruction)
+
+            self.update_column()
+            self.clock_cycle += 1
+
+    def update_column(self):
+        if self.fetched_instruction != "":
+            row = self.pipeLineResults.index([self.fetched_instruction])
+            col = self.clock_cycle
+            self.pipeLineResults[row][col] = "IF"
+
+        if self.decoded_instruction != "":
+            row = self.pipeLineResults.index([self.decoded_instruction])
+            col = self.clock_cycle
+            self.pipeLineResults[row][col] = "ID"
+
+        if self.executed_instruction != "":
+            row = self.pipeLineResults.index([self.decoded_instruction])
+            col = self.clock_cycle
+            if self.executed_instruction[:5] not in ["ADD.D", "SUB.D", "MUL.D", "DIV.D"]:
+                self.pipeLineResults[row][col] = "EX"
 
 if __name__ == '__main__':
     processor = Processor()
@@ -276,9 +295,7 @@ if __name__ == '__main__':
     filename = input("Enter the instruction file name: ")
 
     # Process the instruction file
-    instructions = processor.process_instruction_file(filename)
-    print(processor.instructions)
-    
+    processor.process_instruction_file(filename)
     processor.run_pipeline()
 """
     processor.fp_registers[1] = 2.5
