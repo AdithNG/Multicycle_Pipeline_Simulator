@@ -7,12 +7,19 @@ oneCycle = ["if", "id", "ex", "mem", "wb"]
 
 
 class Instruction:
-    def __init__(self, instructionName, parameter1, parameter2 = None, parameter3 = None,):
-        self.instruction = instructionName
+    def __init__(self, instruction_name, parameter1, parameter2 = None, parameter3 = None, cycles_left = 1, completed = False):
+        self.instruction = instruction_name
         
         self.parameter1 = parameter1
         self.parameter2 = parameter2
         self.parameter3 = parameter3
+
+        self.cycles_left = cycles_left
+        self.completed = completed
+
+    def cycles_left(self, value):
+        self.cycles_left = value
+        self.completed = (self.cycles_left == 0)
     
     def decode(self):
         
