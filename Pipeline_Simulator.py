@@ -91,6 +91,7 @@ class Processor:
         registers = line[1].split(",")
         instruction = line[0]
         dest_reg = int(registers[0][1])
+        self.busy_registers.append(registers[1])
 
         if instruction == "L.D":
             offset = int(registers[1][:registers[1].find("(")])
