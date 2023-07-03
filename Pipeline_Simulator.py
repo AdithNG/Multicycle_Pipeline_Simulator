@@ -1,3 +1,11 @@
+nonexecution_stages = ["if", "id", "mem", "wb"]
+additionCycle = ["if", "id", "A1", "A2", "mem", "wb"] 
+subtractionCycle = ["if", "id", "S1", "S2", "mem", "wb"]
+multiplicationCycle = ["if", "id", "M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9", "M10", "mem", "wb"]
+divisionCycle = ["if", "id"] + ["D"+str(i) for i in range(1, 41)] + ["mem", "wb"]
+oneCycle = ["if", "id", "ex", "mem", "wb"]
+
+
 class Processor:
     def __init__(self):
         self.fp_adder_pipeline_cycles = 2
@@ -16,6 +24,14 @@ class Processor:
         self.writeback_instruction = ""
         self.busy_registers = []
         self.clock_cycle = 0
+
+        #the 4 cache blocks
+        self.cache = [None, None, None, None]
+
+        #to hold the results
+        self.pipeLineResults = []
+
+
 
     def execute_fp_add(self, dest_reg, src_reg1, src_reg2):
         self.fp_registers[dest_reg] = self.fp_registers[src_reg1] + self.fp_registers[src_reg2]
@@ -193,9 +209,9 @@ class Processor:
         # that hold the fetched, decoded, and executed instructions
 
         # Example implementation assuming a simple 3-stage pipeline
-        self.fetched_instruction = ""
-        self.decoded_instruction = ""
-        self.executed_instruction = ""
+        self.fetched_instruction = []  # Or pop the last element?
+        self.decoded_instruction = []
+        self.executed_instruction = []
 
     def print_registers(self):
         print("Integer Registers:")
@@ -207,13 +223,17 @@ class Processor:
 
     def run_pipeline(self):
         i = 0
+
+        """
         while i < len(self.instructions) != []:
             self.fetched_instruction = self.fetch_instruction()
-            self.decoded_instruction = self.decode_instruction(self.fetch_instruction)
-            self.executed_instruction = self.execute_instruction(self.decode_instruction)
-            self.memory_instruction = self.memory_instruction(self.execute_instruction)
+            self.decoded_instruction = self.decode_instruction(self.fetched_instruction)
+            self.executed_instruction = self.execute_instruction(self.decoded_instruction)
+            self.memory_instruction = self.memory_instruction(self.executed_instruction)
             self.writeback_instruction = self.writeback_instruction(self.memory_instruction)
             i += 1
+        """
+        
 
 
 if __name__ == '__main__':
@@ -224,6 +244,7 @@ if __name__ == '__main__':
 
     # Process the instruction file
     instructions = processor.process_instruction_file(filename)
+    print(processor.instructions)
 
     processor.fp_registers[1] = 2.5
     processor.fp_registers[2] = 3.7
