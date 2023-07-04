@@ -1,3 +1,5 @@
+from components import process_command
+
 nonexecution_stages = ["if", "id", "mem", "wb"]
 additionCycle = ["if", "id", "A1", "A2", "mem", "wb"] 
 subtractionCycle = ["if", "id", "A1", "A2", "mem", "wb"]
@@ -7,15 +9,20 @@ oneCycle = ["if", "id", "ex", "mem", "wb"]
 
 
 class Instruction:
-    def __init__(self, instruction_name, parameter1, parameter2 = None, parameter3 = None, cycles_left = 1, completed = False):
+    def __init__(self, full_name, instruction_name, parameter1, parameter2 = None, parameter3 = None):
+
+        self.full_name = full_name
+
         self.instruction = instruction_name
         
         self.parameter1 = parameter1
         self.parameter2 = parameter2
         self.parameter3 = parameter3
+        
 
-        self.cycles_left = cycles_left
-        self.completed = completed
+        self.fullName = full_name
+
+        self.completed = False
 
     def cycles_left(self, value):
         self.cycles_left = value
@@ -24,18 +31,80 @@ class Instruction:
     def decode(self):
         
         if(self.instruction == "L.D"):
-            self.destRegister = self.parameter1
+            self.dest_f_register = self.parameter1
             self.offset = self.parameter2
-            self.sourceAddr = self.parameter3
-        elif(self.instruction = "S.D"):
-            self.sourceRegister = self.parameter1
+            self.source_addr = self.parameter3
+            self.cycles_left = 1
+        elif(self.instruction == "S.D"):
+            self.source_f_register = self.parameter1
             self.offset = self.parameter2
-            self.destAddr = self.parameter3
-        elif:
+            self.dest_addr = self.parameter3
+            self.cycles_left = 1
+        elif(self.instrucion == "LI"):
+            self.dest_i_register = self.parameter1
+            self.immediate = self.parameter2
+            self.cycles_left = 1
+        elif(self.instruction == "LW"):
+            self.dest_i_register = self.parameter1
+            self.offset = self.parameter2
+            self.source_addr = self.parameter3
+            self.cycles_left = 1
+        elif(self.instruction == "SW"):
+            self.source_i_register = self.parameter1
+            self.offset = self.parameter2
+            self.dest_addr = self.parameter3
+            self.cycles_left = 1
+        elif(self.instruction == "ADD"):
+            self.dest_i_register = self.parameter1
+            self.source_i_register1 = self.parameter2
+            self.source_i_register2 = self.parameter3
+            self.cycles_left = 1
+        elif(self.instruction == "ADDI"):
+            self.dest_i_register = self.parameter1
+            self.source_i_register = self.parameter2
+            self.immediate = self.parameter3
+            self.cycles_left = 1
+        elif(self.instruction == "ADD.D"):
+            self.dest_f_register = self.parameter1
+            self.source_f_register1 = self.parameter2
+            self.source_f_register2 = self.parameter3
+            self.cycles_left = 2
+        elif(self.instruction == "SUB.D"):
+            self.dest_f_register = self.parameter1
+            self.source_f_register1 = self.parameter2
+            self.source_f_register2 = self.parameter3
+            self.cycles_left = 2
+        elif(self.instruction == "SUB"):
+            self.dest_i_register = self.parameter1
+            self.source_i_register1 = self.parameter2
+            self.source_i_register2 = self.parameter3
+            self.cycles_left = 1
+        elif(self.instruction == "MUL.D"):
+            self.dest_f_register = self.parameter1
+            self.source_f_register1 = self.parameter2
+            self.source_f_register2 = self.parameter3
+            self.cycles_left = 10
+        elif(self.instruction == "DIV.D"):
+            self.dest_f_register = self.parameter1
+            self.source_f_register1 = self.parameter2
+            self.source_f_register2 = self.parameter3
+            self.cycles_left = 40
+        elif(self.instruction == "BEQ"):
+            self.source_i_register1 = self.parameter1
+            self.source_i_register2 = self.parameter2
+            self.subroutine = self.parameter3
+            self.cycles_left = 1
+        elif(self.instruction == "BNE"):
+            self.source_i_register1 = self.parameter1
+            self.source_i_register2 = self.parameter2
+            self.subroutine = self.parameter3
+            self.cycles_left = 1
+        elif(self.instruction == "J"):
+            self.jmp_addr = self.parameter1
+            self.cycles_left = 1
+            
 
-
-
-
+            
 
 class Processor:
     def __init__(self):
@@ -48,7 +117,7 @@ class Processor:
         self.memory = [45, 12, 0, 92, 10, 135, 254, 127, 18, 4, 55, 8, 2, 98, 13, 5, 233, 158, 167]
         self.branch_predictions = {}  # Stores branch predictions
         self.instructions = []
-        self.instruction_objects = []
+        self.instruction_object = []
         self.next_instruction = 0
         self.fetched_instruction = ""
         self.decoded_instruction = ""
@@ -57,7 +126,13 @@ class Processor:
         self.writeback_instruction = ""
         self.busy_registers = []
         self.clock_cycle = 0
-        self.loop_index = -1
+        self.IF_stall = False
+        self.ID_stall = False
+        self.EX_stall = False
+        self.MEM_stall = False
+
+        #store subroutines
+        self.subroutines = {}
 
         #the 4 cache blocks
         self.cache = [None, None, None, None]
@@ -71,16 +146,39 @@ class Processor:
         instructions = [line.strip() for line in instructions]
         self.instructions = instructions
 
+        for i in range(self.instructions):
+
+            if(":" in self.instructions[i]):
+                subroutine = line[0:line.find(":")]
+                #self.instructions[i] = self.instructions[i][self.instructions[i].find(":") + 2:]
+
+                self.subroutines[subroutine] = i
+
+                
+        
+
+        
+
     def fetch_instruction(self, index):
         if index < len(self.instructions):
             self.fetched_instruction = self.instructions[index]
+            self.pipeLineResults.append([self.fetched_instruction])
+            for i in range(0, self.clock_cycle + 1):
+                self.pipeLineResults[len(self.pipeLineResults)].append("  ")
         else:
             self.fetched_instruction = ""
         return self.fetched_instruction
     
     def decode_instruction(self, line):
-        self.decoded_instruction = line
-        instruction = Instruction()
+
+
+        if(isInstance(line, str)):
+
+            name, par1, par2, par3 = process_command(line)
+
+            instruction = Instruction(line, name, par1, par2, par3)
+
+            instruction.decode()
     
     
     def execute_fp_add(self, dest_reg, src_reg1, src_reg2):
@@ -122,106 +220,9 @@ class Processor:
             self.memory[mem_address] = self.int_registers[src_reg]
 
 
-
-    def process_command(self, line):
-
-        # stored as an integer initially  as a safe way of verifying that there is no subroutine in the line
-        subroutine = ""
-
-        # but if it is a subroutine, store the name of it and strip if from the line so it can be processed
-        if ":" in line:
-            subroutine = line[:line.find(":") + 1]
-            line = line[line.find(":") + 2:]
-
-        line = line.split()
-        registers = line[1].split(",")
-        instruction = line[0]
-        dest_reg = int(registers[0][1])
-
-        if instruction == "L.D":
-            offset = int(registers[1][:registers[1].find("(")])
-
-            # If src_addr is a register
-            if registers[1][registers[1].find("(") + 1] == "$" :
-                src_addr = registers[1][registers[1].find("(") + 2: registers[1].find(")")]
-                self.execute_load(dest_reg, (src_addr + offset) % 35, 4)
-
-            # If src_addr is a memory location
-            else:
-                src_addr = registers[1][registers[1].find("(") + 1: registers[1].find(")")]
-                self.execute_load(dest_reg, (src_addr + offset) % 19, 0)
-
-        elif instruction == "LI":
-            immediate = int(registers[1])
-            self.execute_load(dest_reg, immediate, 2)
-
-        elif instruction == "LW":
-            offset = int(registers[1][:registers[1].find("(")])
-            # If src_addr is a register
-            if registers[1][registers[1].find("(") + 1] == "$":
-                src_addr = registers[1][registers[1].find("(") + 2: registers[1].find(")")]
-                self.execute_load(dest_reg, (src_addr + offset) % 35, 5)
-
-            # If src_addr is a memory location
-            else:
-                src_addr = int(registers[1][registers[1].find("(") + 1: registers[1].find(")")])
-                self.execute_load(dest_reg, (src_addr + offset) % 19, 1)
-
-        elif instruction == "S.D":
-            offset = int(registers[1][:registers[1].find("(")])
-            src_addr = int(registers[1][registers[1].find("(") + 1: registers[1].find(")")])
-            self.execute_load(dest_reg, (src_addr + offset) % 19, 0)
-
-        elif instruction == "SW":
-            offset = int(registers[1][:registers[1].find("(")])
-            src_addr = int(registers[1][registers[1].find("(") + 1: registers[1].find(")")])
-            self.execute_load(dest_reg, (src_addr + offset) % 19, 1)
-
-        elif instruction == "ADD":
-            src_reg1 = int(registers[1][1])
-            src_reg2 = int(registers[2][1])
-            self.execute_int_add(dest_reg, src_reg1, src_reg2)
-
-        elif instruction == "ADDI":
-            src_reg1 = int(registers[1][1])
-            immediate = int(registers[2])
-            self.execute_int_add(dest_reg, src_reg1, immediate)
-
-        elif instruction == "ADD.D":
-            src_reg1 = int(registers[1][1])
-            src_reg2 = int(registers[2][1])
-            self.execute_fp_add(dest_reg, src_reg1, src_reg2)
-
-        elif instruction == "SUB.D":
-            src_reg1 = int(registers[1][1])
-            src_reg2 = int(registers[2][1])
-            self.execute_fp_sub(dest_reg, src_reg1, src_reg2)
-
-        elif instruction == "SUB":
-            src_reg1 = int(registers[1][1])
-            src_reg2 = int(registers[2][1])
-            self.execute_int_sub(dest_reg, src_reg1, src_reg2)
-
-        elif instruction == "MUL.D":
-            src_reg1 = int(registers[1][1])
-            src_reg2 = int(registers[2][1])
-            self.execute_fp_mul(dest_reg, src_reg1, src_reg2)
-
-        elif instruction == "DIV.D":
-            src_reg1 = int(registers[1][1])
-            src_reg2 = int(registers[2][1])
-            self.execute_fp_div(dest_reg, src_reg1, src_reg2)
-
-        elif instruction == "BEQ":
-            src_reg1 = int(registers[1][1])
-            off18 = registers[2]
-
-        elif instruction == "BNE":
-            src_reg1 = int(registers[1][1])
-            off18 = registers[2]
-
-        elif instruction == "J":
-            addr28 = registers[0]
+            
+        
+        
 
 
 
@@ -268,43 +269,79 @@ class Processor:
             print(f"F{i}: {self.fp_registers[i]}")
 
     def run_pipeline(self):
-
+        
         #self.pipeLineResults = [[self.instructions[j]] for j in range(len(self.instructions))]
-
+        
         while (self.fetched_instruction != "" and self.decoded_instruction != "" and self.executed_instruction != "" and self.memory_instruction != "" and self.writeback_instruction != "") or self.next_instruction == 0:
             [row.append("  ") for row in self.pipeLineResults]
 
+            # WB Stage
             self.writeback_instruction(self.memory_instruction)
-            self.memory_instruction(self.executed_instruction)
-            self.execute_instruction(self.decoded_instruction)
-            self.decode_instruction(self.fetched_instruction)
-            self.fetch_instruction(self.next_instruction)
-
-            self.update_column()
+            
+            # MEM Stage
+            if self.MEM_stall:
+                self.memory_instruction(self.memory_instruction)
+            else:
+                self.memory_instruction(self.executed_instruction)
+            
+            # EX Stage    
+            if self.EX_stall or not self.instruction_object.completed:                            
+                self.execute_instruction(self.executed_instruction)
+            else:
+                self.execute_instruction(self.decoded_instruction)
+            
+            # ID Stage
+            if self.ID_stall:        
+                self.decode_instruction(self.decoded_instruction)
+            else:
+                self.decode_instruction(self.fetched_instruction)
+                
+            # IF Stage
+            if self.IF_stall:
+                self.fetch_instruction(self.fetched_instruction)
+            else:
+                self.fetch_instruction(self.next_instruction)
+            
             self.clock_cycle += 1
+            self.update_column()
+            
 
     def update_column(self):
         if self.fetched_instruction != "":
             row = self.pipeLineResults.index([self.fetched_instruction])
             col = self.clock_cycle
-            self.pipeLineResults[row][col] = "IF"
+            if self.IF_stall:
+                self.pipeLineResults[row][col] = "stall"
+            else:
+                self.pipeLineResults[row][col] = "if"
 
         if self.decoded_instruction != "":
             row = self.pipeLineResults.index([self.decoded_instruction])
             col = self.clock_cycle
-            self.pipeLineResults[row][col] = "ID"
+            if self.ID_stall:
+                self.pipeLineResults[row][col] = "stall"
+            else:
+                self.pipeLineResults[row][col] = "ID"
 
         if self.executed_instruction != "":
-            row = self.pipeLineResults.index([self.decoded_instruction])
+            row = self.pipeLineResults.index([self.executed_instruction])
             col = self.clock_cycle
-            if self.executed_instruction[:5] != "Loop:":
-                if self.executed_instruction[:5] not in ["ADD.D", "SUB.D", "MUL.D", "DIV.D"]:
-                    self.pipeLineResults[row][col] = "EX"
-                else:
+            if self.EX_stall:
+                self.pipeLineResults[row][col] = "stall"
             else:
-                if self.executed_instruction.split()[1] not in ["ADD.D", "SUB.D", "MUL.D", "DIV.D"]:
-                    self.pipeLineResults[row][col] = "EX"
+                if self.executed_instruction[:5] != "Loop:":
+                    if self.executed_instruction[:5] not in ["ADD.D", "SUB.D", "MUL.D", "DIV.D"]:
+                        self.pipeLineResults[row][col] = "EX"
+                    else:
+                        pass
                 else:
+                    if self.executed_instruction.split()[1] not in ["ADD.D", "SUB.D", "MUL.D", "DIV.D"]:
+                        self.pipeLineResults[row][col] = "EX"
+                    else:
+                        pass
+                    
+        if self.memory_instruction != "":
+            row = self.pipeLineResults.index([self.instruction])
 
 
 
