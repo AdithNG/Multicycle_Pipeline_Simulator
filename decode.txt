@@ -1,0 +1,20 @@
+If string - create object
+
+Object 
+
+If source register is the same as one of the busy registers - Hazard, stall
+
+
+Instruction.stall = true         -> This means that the instruction will stall, this means that also the previous instruction in the IF stage must stall in IF
+Instruction.stall = false        -> This means you can move this to the execution stage in the next cycle, and move the next instruction to the ID stage
+
+Instruction.forwarding1 = true/false    
+Instruction.forwarding2 = true/false
+-> These will be flagged true if the source registers are found in the forwarding dictionary
+
+Instruction.forwardSource1 = value
+Instruction.forwardSource2 = value
+-> These will hold the values forwarded so it can start executing before entering the memory stage
+
+
+
