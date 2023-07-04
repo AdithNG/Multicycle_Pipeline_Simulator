@@ -57,6 +57,7 @@ class Processor:
         self.writeback_instruction = ""
         self.busy_registers = []
         self.clock_cycle = 0
+        self.loop_index = -1
 
         #the 4 cache blocks
         self.cache = [None, None, None, None]
@@ -64,9 +65,17 @@ class Processor:
         #to hold the results
         self.pipeLineResults = []
 
+    def process_instruction_file(self, filename):
+        with open(filename, 'r') as file:
+            instructions = file.readlines()
+        instructions = [line.strip() for line in instructions]
+        self.instructions = instructions
 
-    def fetch_instruction(self, Index):
-        self.fetched_instruction = self.instructions[Index]
+    def fetch_instruction(self, index):
+        if index < len(self.instructions):
+            self.fetched_instruction = self.instructions[index]
+        else:
+            self.fetched_instruction = ""
         return self.fetched_instruction
     
     def decode_instruction(self, line):
@@ -112,11 +121,7 @@ class Processor:
         elif type == 1:
             self.memory[mem_address] = self.int_registers[src_reg]
 
-    def process_instruction_file(self, filename):
-        with open(filename, 'r') as file:
-            instructions = file.readlines()
-        instructions = [line.strip() for line in instructions]
-        self.instructions = instructions
+
 
     def process_command(self, line):
 
@@ -264,7 +269,7 @@ class Processor:
 
     def run_pipeline(self):
 
-        self.pipeLineResults = [[self.instructions[j]] for j in range(len(self.instructions))]
+        #self.pipeLineResults = [[self.instructions[j]] for j in range(len(self.instructions))]
 
         while (self.fetched_instruction != "" and self.decoded_instruction != "" and self.executed_instruction != "" and self.memory_instruction != "" and self.writeback_instruction != "") or self.next_instruction == 0:
             [row.append("  ") for row in self.pipeLineResults]
@@ -292,8 +297,17 @@ class Processor:
         if self.executed_instruction != "":
             row = self.pipeLineResults.index([self.decoded_instruction])
             col = self.clock_cycle
-            if self.executed_instruction[:5] not in ["ADD.D", "SUB.D", "MUL.D", "DIV.D"]:
-                self.pipeLineResults[row][col] = "EX"
+            if self.executed_instruction[:5] != "Loop:":
+                if self.executed_instruction[:5] not in ["ADD.D", "SUB.D", "MUL.D", "DIV.D"]:
+                    self.pipeLineResults[row][col] = "EX"
+                else:
+            else:
+                if self.executed_instruction.split()[1] not in ["ADD.D", "SUB.D", "MUL.D", "DIV.D"]:
+                    self.pipeLineResults[row][col] = "EX"
+                else:
+
+
+
 
 if __name__ == '__main__':
     processor = Processor()
