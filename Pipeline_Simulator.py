@@ -146,10 +146,10 @@ class Processor:
         instructions = [line.strip() for line in instructions]
         self.instructions = instructions
 
-        for i in range(self.instructions):
+        for i in range(len(self.instructions)):
 
             if(":" in self.instructions[i]):
-                subroutine = line[0:line.find(":")]
+                subroutine = self.instructions[i][0:self.instructions[i].find(":")]
                 #self.instructions[i] = self.instructions[i][self.instructions[i].find(":") + 2:]
 
                 self.subroutines[subroutine] = i
@@ -164,23 +164,33 @@ class Processor:
             self.fetched_instruction = self.instructions[index]
             self.pipeLineResults.append([self.fetched_instruction])
             for i in range(0, self.clock_cycle + 1):
-                self.pipeLineResults[len(self.pipeLineResults)].append("  ")
+                self.pipeLineResults[len(self.pipeLineResults)-1].append("  ")
         else:
             self.fetched_instruction = ""
         return self.fetched_instruction
-    
+
+
     def decode_instruction(self, line):
+        self.next_instruction += 1
+
+        #if(isInstance(line, str)):
+
+        #    name, par1, par2, par3 = process_command(line)
+
+        #    instruction = Instruction(line, name, par1, par2, par3)
+
+        #    instruction.decode()
 
 
-        if(isInstance(line, str)):
+    def execute_instruction(self, line):
+       pass
 
-            name, par1, par2, par3 = process_command(line)
+    def mem_instruction(self, line):
+        pass
 
-            instruction = Instruction(line, name, par1, par2, par3)
+    def writeBack_instruction(self, line):
+      pass
 
-            instruction.decode()
-    
-    
     def execute_fp_add(self, dest_reg, src_reg1, src_reg2):
         self.fp_registers[dest_reg] = self.fp_registers[src_reg1] + self.fp_registers[src_reg2]
 
@@ -246,10 +256,10 @@ class Processor:
             self.flush_pipeline()
 
             # Fetch the correct instruction corresponding to the branch label
-            correct_instruction = get_instruction_from_label(label)
+            #correct_instruction = get_instruction_from_label(label)
 
             # Fetch the correct instruction on the current cycle
-            self.fetch_instruction(correct_instruction)
+            #self.fetch_instruction(correct_instruction)
 
     def flush_pipeline(self):
         # Assuming there are pipeline stages represented by variables or data structures
@@ -276,16 +286,16 @@ class Processor:
             [row.append("  ") for row in self.pipeLineResults]
 
             # WB Stage
-            self.writeback_instruction(self.memory_instruction)
+            self.writeBack_instruction(self.memory_instruction)
             
             # MEM Stage
             if self.MEM_stall:
-                self.memory_instruction(self.memory_instruction)
+                self.mem_instruction(self.memory_instruction)
             else:
-                self.memory_instruction(self.executed_instruction)
+                self.mem_instruction(self.executed_instruction)
             
             # EX Stage    
-            if self.EX_stall or not self.instruction_object.completed:                            
+            if self.EX_stall:
                 self.execute_instruction(self.executed_instruction)
             else:
                 self.execute_instruction(self.decoded_instruction)
@@ -304,11 +314,11 @@ class Processor:
             
             self.clock_cycle += 1
             self.update_column()
-            
+        print(self.pipeLineResults)
 
     def update_column(self):
         if self.fetched_instruction != "":
-            row = self.pipeLineResults.index([self.fetched_instruction])
+            row = self.find_index(self.fetched_instruction)
             col = self.clock_cycle
             if self.IF_stall:
                 self.pipeLineResults[row][col] = "stall"
@@ -316,7 +326,7 @@ class Processor:
                 self.pipeLineResults[row][col] = "if"
 
         if self.decoded_instruction != "":
-            row = self.pipeLineResults.index([self.decoded_instruction])
+            row = self.find_index(self.decoded_instruction)
             col = self.clock_cycle
             if self.ID_stall:
                 self.pipeLineResults[row][col] = "stall"
@@ -324,7 +334,7 @@ class Processor:
                 self.pipeLineResults[row][col] = "ID"
 
         if self.executed_instruction != "":
-            row = self.pipeLineResults.index([self.executed_instruction])
+            row = self.find_index(self.executed_instruction)
             col = self.clock_cycle
             if self.EX_stall:
                 self.pipeLineResults[row][col] = "stall"
@@ -341,9 +351,25 @@ class Processor:
                         pass
                     
         if self.memory_instruction != "":
-            row = self.pipeLineResults.index([self.instruction])
+            row = self.find_index(self.memory_instruction)
+            col = self.clock_cycle
+            if self.MEM_stall:
+                self.pipeLineResults[row][col] = "stall"
+            else:
+                self.pipeLineResults[row][col] = "mem"
+
+        if self.writeback_instruction != "":
+            row = self.find_index(self.writeback_instruction)
+            col = self.clock_cycle
+            self.pipeLineResults[row][col] = "wb"
 
 
+
+    def find_index(self, line):
+        for i in range(len(self.pipeLineResults)-1,0,-1):
+            if self.pipeLineResults[i][0] == line:
+                return i
+        return 0
 
 
 if __name__ == '__main__':
