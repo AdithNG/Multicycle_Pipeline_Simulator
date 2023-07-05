@@ -282,7 +282,7 @@ class Processor:
         
         #self.pipeLineResults = [[self.instructions[j]] for j in range(len(self.instructions))]
         
-        while (self.fetched_instruction != "" and self.decoded_instruction != "" and self.executed_instruction != "" and self.memory_instruction != "" and self.writeback_instruction != "") or self.next_instruction == 0:
+        while not (self.fetched_instruction == "" and self.decoded_instruction == "" and self.executed_instruction == "" and self.memory_instruction == "" and self.writeback_instruction == "") or self.next_instruction == 0:
             [row.append("  ") for row in self.pipeLineResults]
 
             # WB Stage
@@ -314,7 +314,8 @@ class Processor:
             
             self.clock_cycle += 1
             self.update_column()
-        print(self.pipeLineResults)
+        [print(row) for row in self.pipeLineResults]
+
 
     def update_column(self):
         if self.fetched_instruction != "":
