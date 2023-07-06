@@ -40,7 +40,7 @@ class Instruction:
             self.offset = self.parameter2
             self.dest_addr = self.parameter3
             self.cycles_left = 1
-        elif(self.instrucion == "LI"):
+        elif(self.instruction == "LI"):
             self.dest_i_register = self.parameter1
             self.immediate = self.parameter2
             self.cycles_left = 1
@@ -173,64 +173,80 @@ class Processor:
 
     def decode_instruction(self, line):
         self.next_instruction += 1
+        self.decoded_instruction = line
 
-        if(isinstance(line, str)):
+
+
+        instruction = None
+        if(isinstance(line, str) and line != ""):
+            row = self.find_index(line)
+            if 'wb' in self.pipeLineResults[row]:
+                self.decoded_instruction = ""
+                return
+            if "id" not in self.pipeLineResults[row]:
+                self.next_instruction += 1
 
             name, par1, par2, par3 = process_command(line)
 
             instruction = Instruction(line, name, par1, par2, par3)
 
-            instruction.decode()
+            #instruction.decode()
 
-        #second and third parameters read from registers
-        if(line.instruction in ["ADD", "ADD.D", "SUB.D", "SUB", "MUL.D", "DIV.D"]):
+            #second and third parameters read from registers
+            if(instruction.instruction in ["ADD", "ADD.D", "SUB.D", "SUB", "MUL.D", "DIV.D"]):
 
-            if(line.insruction in ["ADD", "SUB"]):
-                if(line.parameter2 in self.busy_int_registers):
-                    line.shouldStall = True
-                elif(line.parameter3 in self.busy_int_registers):
-                    line.shouldStall = True
+                if(instruction.instruction in ["ADD", "SUB"]):
+                    if(instruction.parameter2 in self.busy_int_registers or instruction.parameter3 in self.busy_int_registers):
+                        instruction.shouldStall = True
+                        self.ID_stall = True
+                        self.IF_stall = True
+                    else:
+                        instruction.shouldStall = False
                 else:
-                    line.shouldStall = False
-            else:
-                if(line.parameter2 in self.busy_fp_registers):
-                    line.shouldStall = True
-                elif(line.parameter3 in self.busy_fp_registers):
-                    line.shouldStall = True
-                else:
-                    line.shouldStall = False
-        
-        #first parameter reads from a register
-        elif(line.instruction in ["S.D", "SW"]):
-            if(line.instruction == "S.D"):
-                if(line.parameter1 in self.busy_fp_registers):
-                    line.shouldStall = True
-                else:
-                    line.shouldStall = False
-            else:
-                if(line.parameter1 in self.busy_int_registers):
-                    line.shouldStall = True
-                else:
-                    line.shouldStall = False
+                    if(instruction.parameter2 in self.busy_fp_registers or instruction.parameter3 in self.busy_fp_registers):
+                        instruction.shouldStall = True
+                        self.ID_stall = True
+                        self.IF_stall = True
+                    else:
+                        instruction.shouldStall = False
 
-        #second parameter reads from a register
-        elif(line.insruction == "ADDI"):
-            if(line.parameter2 in self.busy_int_registers):
-                line.shouldStall = True
-            else:
-                line.shouldStall = False
+            #first parameter reads from a register
+            elif(instruction.instruction in ["S.D", "SW"]):
+                if(instruction.instruction == "S.D"):
+                    if(instruction.parameter1 in self.busy_fp_registers):
+                        instruction.shouldStall = True
+                        self.ID_stall = True
+                        self.IF_stall = True
+                    else:
+                        instruction.shouldStall = False
+                else:
+                    if(instruction.parameter1 in self.busy_int_registers):
+                        instruction.shouldStall = True
+                        self.ID_stall = True
+                        self.IF_stall = True
+                    else:
+                        instruction.shouldStall = False
 
-        #load from memory, since mems happen in order, there should be no hazards here
-        # LI only puts it in the register in the Writeback stage, so also, no memory hazards       
-        elif(line.instruction in ["L.D", "LW", "LI"]):
-            line.shouldStall = False
+            #second parameter reads from a register
+            elif(instruction.instruction == "ADDI"):
+                if(instruction.parameter2 in self.busy_int_registers):
+                    instruction.shouldStall = True
+                    self.ID_stall = True
+                    self.IF_stall = True
+                else:
+                    instruction.shouldStall = False
 
-        if(line.instruction in ["L.D", "ADD.D", "SUB.D", "MUL.D", "DIV.D"]):
-            if(line.shouldStall):
-                self.busy_fp_registers.append(line.paramater1)
-        elif(line.instruction in ["LI", "LW", "ADD", "ADDI", "SUB"]):
-            if(line.shouldStall):
-                self.busy_int_registers.append(line.paramater1)
+            #load from memory, since mems happen in order, there should be no hazards here
+            # LI only puts it in the register in the Writeback stage, so also, no memory hazards
+            elif(instruction.instruction in ["L.D", "LW", "LI"]):
+                instruction.shouldStall = False
+
+            if(instruction.instruction in ["L.D", "ADD.D", "SUB.D", "MUL.D", "DIV.D"]):
+                if not (instruction.shouldStall):
+                    self.busy_fp_registers.append(instruction.parameter1)
+            elif(instruction.instruction in ["LI", "LW", "ADD", "ADDI", "SUB"]):
+                if not (instruction.shouldStall):
+                    self.busy_int_registers.append(instruction.parameter1)
 
         return line
 
@@ -238,13 +254,29 @@ class Processor:
 
 
     def execute_instruction(self, line):
-       pass
+        if line != "":
+            row = self.find_index(line)
+            if 'wb' in self.pipeLineResults[row]:
+                self.executed_instruction = ""
+                return
+            self.executed_instruction = line
 
     def mem_instruction(self, line):
-        pass
+        if line != "":
+            row = self.find_index(line)
+            if 'wb' in self.pipeLineResults[row]:
+                self.memory_instruction = ""
+                return
+            self.memory_instruction = line
 
     def writeBack_instruction(self, line):
-      pass
+        if line != "":
+            row = self.find_index(line)
+            print(row)
+            if 'wb' in self.pipeLineResults[row]:
+                self.writeback_instruction = ""
+                return
+            self.writeback_instruction = line
 
     def execute_fp_add(self, dest_reg, src_reg1, src_reg2):
         self.fp_registers[dest_reg] = self.fp_registers[src_reg1] + self.fp_registers[src_reg2]
@@ -335,8 +367,6 @@ class Processor:
 
     def run_pipeline(self):
         
-        #self.pipeLineResults = [[self.instructions[j]] for j in range(len(self.instructions))]
-        
         while not (self.fetched_instruction == "" and self.decoded_instruction == "" and self.executed_instruction == "" and self.memory_instruction == "" and self.writeback_instruction == "") or self.next_instruction == 0:
             [row.append("  ") for row in self.pipeLineResults]
 
@@ -377,7 +407,10 @@ class Processor:
             row = self.find_index(self.fetched_instruction)
             col = self.clock_cycle
             if self.IF_stall:
-                self.pipeLineResults[row][col] = "stall"
+                if 'if' not in self.pipeLineResults[row]:
+                    self.pipeLineResults[row][col] = "if"
+                else:
+                    self.pipeLineResults[row][col] = "stall"
             else:
                 self.pipeLineResults[row][col] = "if"
 
@@ -385,39 +418,37 @@ class Processor:
             row = self.find_index(self.decoded_instruction)
             col = self.clock_cycle
             if self.ID_stall:
-                self.pipeLineResults[row][col] = "stall"
+                if 'id' not in self.pipeLineResults[row]:
+                    self.pipeLineResults[row][col] = "id"
+                else:
+                    self.pipeLineResults[row][col] = "stall"
             else:
-                self.pipeLineResults[row][col] = "ID"
+                self.pipeLineResults[row][col] = "id"
 
         if self.executed_instruction != "":
             row = self.find_index(self.executed_instruction)
             col = self.clock_cycle
-            if self.EX_stall:
-                self.pipeLineResults[row][col] = "stall"
-            else:
-                if self.executed_instruction[:5] != "Loop:":
-                    if self.executed_instruction[:5] not in ["ADD.D", "SUB.D", "MUL.D", "DIV.D"]:
-                        self.pipeLineResults[row][col] = "EX"
-                    else:
-                        pass
+            if self.executed_instruction[:5] != "Loop:":
+                if self.executed_instruction[:5] not in ["ADD.D", "SUB.D", "MUL.D", "DIV.D"]:
+                    self.pipeLineResults[row][col] = "ex"
                 else:
-                    if self.executed_instruction.split()[1] not in ["ADD.D", "SUB.D", "MUL.D", "DIV.D"]:
-                        self.pipeLineResults[row][col] = "EX"
-                    else:
-                        pass
+                    pass
+            else:
+                if self.executed_instruction.split()[1] not in ["ADD.D", "SUB.D", "MUL.D", "DIV.D"]:
+                    self.pipeLineResults[row][col] = "ex"
+                else:
+                    pass
                     
         if self.memory_instruction != "":
             row = self.find_index(self.memory_instruction)
             col = self.clock_cycle
-            if self.MEM_stall:
-                self.pipeLineResults[row][col] = "stall"
-            else:
-                self.pipeLineResults[row][col] = "mem"
+            self.pipeLineResults[row][col] = "mem"
 
         if self.writeback_instruction != "":
             row = self.find_index(self.writeback_instruction)
             col = self.clock_cycle
-            self.pipeLineResults[row][col] = "wb"
+            if 'wb' not in self.pipeLineResults[row]:
+                self.pipeLineResults[row][col] = "wb"
 
 
 

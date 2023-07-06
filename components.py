@@ -587,14 +587,14 @@ def process_command(line):
         if(line[4:6].isdigit()):
            dest = line[4:6]
            if(len(line) == 9):
-               int = line[7:]
+               integer = line[7:]
            else:
-               int = line[7]
+               integer = line[7]
         else:
             dest = line[4]
-            int = line[6:]
+            integer = line[6:]
 
-        return line[0:2], int(dest), int(int), None
+        return line[0:2], int(dest), int(integer), None
 
     elif(line[0] == "J"):
         jmp_address = line[2:]
