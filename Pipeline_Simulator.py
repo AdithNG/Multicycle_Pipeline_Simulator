@@ -117,7 +117,7 @@ class Processor:
         self.memory = [45, 12, 0, 92, 10, 135, 254, 127, 18, 4, 55, 8, 2, 98, 13, 5, 233, 158, 167]
         self.branch_predictions = {}  # Stores branch predictions
         self.instructions = []
-        self.instruction_object = []
+        self.instruction_objects = []
         self.next_instruction = 0
         self.fetched_instruction = ""
         self.decoded_instruction = ""
@@ -141,6 +141,8 @@ class Processor:
         #to hold the results
         self.pipeLineResults = []
 
+
+
     def process_instruction_file(self, filename):
         with open(filename, 'r') as file:
             instructions = file.readlines()
@@ -154,10 +156,6 @@ class Processor:
                 #self.instructions[i] = self.instructions[i][self.instructions[i].find(":") + 2:]
 
                 self.subroutines[subroutine] = i
-
-                
-        
-
         
 
     def fetch_instruction(self, index):
@@ -172,13 +170,11 @@ class Processor:
 
 
     def decode_instruction(self, line):
-        self.next_instruction += 1
         self.decoded_instruction = line
-
-
-
         instruction = None
-        if(isinstance(line, str) and line != ""):
+
+        if(line != ""):
+
             row = self.find_index(line)
             if 'wb' in self.pipeLineResults[row]:
                 self.decoded_instruction = ""
@@ -189,6 +185,7 @@ class Processor:
             name, par1, par2, par3 = process_command(line)
 
             instruction = Instruction(line, name, par1, par2, par3)
+            self.instruction_objects[row] = instruction
 
             #instruction.decode()
 
