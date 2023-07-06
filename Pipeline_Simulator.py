@@ -124,7 +124,8 @@ class Processor:
         self.executed_instruction = ""
         self.memory_instruction = ""
         self.writeback_instruction = ""
-        self.busy_registers = []
+        self.busy_fp_registers = []
+        self.busy_int_registers = []
         self.clock_cycle = 0
         self.IF_stall = False
         self.ID_stall = False
@@ -173,13 +174,67 @@ class Processor:
     def decode_instruction(self, line):
         self.next_instruction += 1
 
-        #if(isInstance(line, str)):
+        if(isinstance(line, str)):
 
-        #    name, par1, par2, par3 = process_command(line)
+            name, par1, par2, par3 = process_command(line)
 
-        #    instruction = Instruction(line, name, par1, par2, par3)
+            instruction = Instruction(line, name, par1, par2, par3)
 
-        #    instruction.decode()
+            instruction.decode()
+
+        #second and third parameters read from registers
+        if(line.instruction in ["ADD", "ADD.D", "SUB.D", "SUB", "MUL.D", "DIV.D"]):
+
+            if(line.insruction in ["ADD", "SUB"]):
+                if(line.parameter2 in self.busy_int_registers):
+                    line.shouldStall = True
+                elif(line.parameter3 in self.busy_int_registers):
+                    line.shouldStall = True
+                else:
+                    line.shouldStall = False
+            else:
+                if(line.parameter2 in self.busy_fp_registers):
+                    line.shouldStall = True
+                elif(line.parameter3 in self.busy_fp_registers):
+                    line.shouldStall = True
+                else:
+                    line.shouldStall = False
+        
+        #first parameter reads from a register
+        elif(line.instruction in ["S.D", "SW"]):
+            if(line.instruction == "S.D"):
+                if(line.parameter1 in self.busy_fp_registers):
+                    line.shouldStall = True
+                else:
+                    line.shouldStall = False
+            else:
+                if(line.parameter1 in self.busy_int_registers):
+                    line.shouldStall = True
+                else:
+                    line.shouldStall = False
+
+        #second parameter reads from a register
+        elif(line.insruction == "ADDI"):
+            if(line.parameter2 in self.busy_int_registers):
+                line.shouldStall = True
+            else:
+                line.shouldStall = False
+
+        #load from memory, since mems happen in order, there should be no hazards here
+        # LI only puts it in the register in the Writeback stage, so also, no memory hazards       
+        elif(line.instruction in ["L.D", "LW", "LI"]):
+            line.shouldStall = False
+
+        if(line.instruction in ["L.D", "ADD.D", "SUB.D", "MUL.D", "DIV.D"]):
+            if(line.shouldStall):
+                self.busy_fp_registers.append(line.paramater1)
+        elif(line.instruction in ["LI", "LW", "ADD", "ADDI", "SUB"]):
+            if(line.shouldStall):
+                self.busy_int_registers.append(line.paramater1)
+
+        return line
+
+        
 
 
     def execute_instruction(self, line):
