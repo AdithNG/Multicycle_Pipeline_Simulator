@@ -96,12 +96,14 @@ class Processor:
         self.ID_stall = False
         self.EX_stall = False
         self.MEM_stall = False
+        self.EX_repeat= False
 
         # store subroutines
         self.subroutines = {}
 
         # the 4 cache blocks
-        self.cache = [None, None, None, None]
+        self.cache = [(-1, 0), (-1, 0), (-1, 0), (-1, 0)]
+
 
         # to hold the results
         self.pipeLineResults = []
@@ -123,9 +125,8 @@ class Processor:
         if index < len(self.instructions):
             self.fetched_instruction = self.instructions[index]
             print("fetched:", self.fetched_instruction)
-            if not self.IF_stall:
-                self.instruction_objects.append("")
-                self.pipeLineResults.append([self.fetched_instruction])
+            self.instruction_objects.append("")
+            self.pipeLineResults.append([self.fetched_instruction])
             for i in range(0, self.clock_cycle + 1):
                 self.pipeLineResults[len(self.pipeLineResults) - 1].append("  ")
         else:
@@ -134,7 +135,6 @@ class Processor:
 
     def decode_instruction(self, line):
         self.decoded_instruction = line
-        print("decoded:",self.decoded_instruction)
 
         if (line != ""):
 
@@ -146,14 +146,16 @@ class Processor:
 
             name, par1, par2, par3 = process_command(line)
 
+
             instruction = Instruction(line, name, par1, par2, par3)
             self.instruction_objects[row] = instruction
 
             instruction.decode()
+            print(name, par1, par2, par3)
 
             if "id" not in self.pipeLineResults[row]:
                 if (name in ["BEQ", "BNE"] and self.branch_prediction == 1) or name == "J":
-                    subroutine = line.split()[-1]
+                    subroutine = line.split()[-1].split(",")[-1]
                     self.next_instruction = self.subroutines[subroutine]
                 else:
                     self.next_instruction += 1
@@ -264,6 +266,7 @@ class Processor:
     def execute_instruction(self, line):
         self.executed_instruction = line
 
+
         if line != "":
             row = self.find_index(line)
             if 'wb' in self.pipeLineResults[row]:
@@ -273,23 +276,20 @@ class Processor:
 
             if (instruction.cycles_left > 1):
                 instruction.cycles_left -= 1
+                self.EX_repeat = True
             else:
                 instruction.cycles_left -= 1
                 instruction.completed = True
-
-                if 'mem' not in self.pipeLineResults[row - 1]:
-                    instruction.shouldStall = True
-                    self.EX_stall = True
-                    self.ID_stall = True
-                    self.IF_stall = True
 
                 # the passes will be done in the mem stage
                 if (instruction.instruction == "L.D"):
                     if ('$' in line.split()[-1]):
                         self.busy_fp_registers.remove(instruction.parameter3) if instruction.parameter3 in self.busy_fp_registers else None
                         if instruction.forwarding1:
+                            print("Check:",self.forwarding_int)
                             instruction.parameter3 = self.forwarding_int[instruction.parameter3]
                         else:
+                            print("Check:",self.forwarding_int)
                             instruction.parameter3 = self.fp_registers[instruction.parameter3]
 
                 elif (instruction.instruction == "S.D"):
@@ -382,7 +382,7 @@ class Processor:
                     instruction.to_fp_reg = param2 * param3
                     self.forwarding_fp[instruction.parameter1] = instruction.to_fp_reg
 
-                elif (instruction.instructin == "DIV.D"):
+                elif (instruction.instruction == "DIV.D"):
                     if instruction.forwarding1:
                         param2 = self.forwarding_fp[instruction.parameter2]
                     else:
@@ -417,6 +417,7 @@ class Processor:
                 else:
                     self.busy_int_registers.remove(instruction.parameter1) if instruction.parameter1 in self.busy_int_registers else None
 
+
     def mem_instruction(self, line):
         self.memory_instruction = line
 
@@ -430,8 +431,10 @@ class Processor:
             instruction = self.instruction_objects[self.find_index(line)]
 
             # holds true for anything that has to do with cache, irrelevant otherwise
-            mem_location = (instruction.parameter3 + instruction.parameter2) % 19
-            cache_location = mem_location % 4
+            print(instruction.instruction, instruction.parameter1, instruction.parameter2, instruction.parameter3)
+            if (instruction.instruction in ["L.D", "S.D", "SW", "LW"]):
+                mem_location = (instruction.parameter3 + instruction.parameter2) % 19
+                cache_location = mem_location % 4
 
 
             if (instruction.instruction == "L.D"):
@@ -439,10 +442,10 @@ class Processor:
                 if (instruction.mem_cycles_left == -1):
 
                     # hit
-                    if (self.cache[cache_location][0] == mem_location):
-                        mem_cycles_left = 0
-                        instruction.to_fp_reg = self.cache[cache_location][1]
-                        self.forwarding_fp[instruction.parameter1] = instruction.to_fp_reg
+                    if (self.cache[cache_location][0] == -1 or self.cache[cache_location][0] == mem_location):
+                            mem_cycles_left = 0
+                            instruction.to_fp_reg = self.cache[cache_location][1]
+                            self.forwarding_fp[instruction.parameter1] = instruction.to_fp_reg
 
                     # miss
                     else:
@@ -467,8 +470,9 @@ class Processor:
 
             # no actual memory involved, just get ready to store in register
             elif (instruction.instruction == "LI"):
-                instruction.to_int_reg == self.parameter2
+                instruction.to_int_reg = instruction.parameter2
                 instruction.mem_cycles_left = 0
+                print("To_int_reg:",instruction.to_int_reg)
                 self.forwarding_int[instruction.parameter1] = instruction.to_int_reg
 
             elif (instruction.instruction == "LW"):
@@ -476,7 +480,7 @@ class Processor:
                 if (instruction.mem_cycles_left == -1):
 
                     # hit
-                    if (self.cache[cache_location][0] == mem_location):
+                    if (self.cache[cache_location][0] == -1 or self.cache[cache_location][0] == mem_location):
                         mem_cycles_left = 0
                         instruction.to_int_reg = self.cache[cache_location][1]
                         self.forwarding_int[instruction.parameter1] = instruction.to_int_reg
@@ -496,7 +500,7 @@ class Processor:
                     self.forwarding_int[instruction.parameter1] = instruction.to_int_reg
 
             # store in memory and cache
-            elif (instruction.intruction == "SW"):
+            elif (instruction.instruction == "SW"):
                 self.memory[mem_location] = instruction.to_mem
                 self.cache[cache_location] = (mem_location, instruction.to_mem)
                 instruction.mem_cycles_left = 0
@@ -505,8 +509,10 @@ class Processor:
             else:
                 instruction.mem_cycles_left == 0
 
+
     def writeBack_instruction(self, line):
         self.writeback_instruction = line
+
         if line != "":
             row = self.find_index(line)
             print(row)
@@ -520,6 +526,7 @@ class Processor:
                 self.fp_registers[instruction.parameter1] = instruction.to_fp_reg
             elif (instruction.instruction in ["LI", "LW", "ADD", "SUB", "ADDI"]):
                 self.int_registers[instruction.parameter1] = instruction.to_int_reg
+
 
     def flush_pipeline(self):
         self.fetched_instruction = ""  #
@@ -536,31 +543,34 @@ class Processor:
 
     def run_pipeline(self):
 
-        while not (
-                self.fetched_instruction == "" and self.decoded_instruction == "" and self.executed_instruction == "" and self.memory_instruction == "" and self.writeback_instruction == "") or self.next_instruction == 0:
+        while not (self.fetched_instruction == "" and self.decoded_instruction == "" and self.executed_instruction == "" and self.memory_instruction == "" and self.writeback_instruction == "") or self.next_instruction == 0:
             [row.append("  ") for row in self.pipeLineResults]
 
             # WB Stage
             self.writeBack_instruction(self.memory_instruction)
 
+            '''
             # MEM Stage
             if self.MEM_stall:
                 self.mem_instruction(self.memory_instruction)
             else:
-                self.mem_instruction(self.executed_instruction)
-
+            '''
+            self.mem_instruction(self.executed_instruction)
+            '''
             # EX Stage
-            if self.EX_stall:
+            if self.EX_stall or self.EX_repeat:
                 self.execute_instruction(self.executed_instruction)
             else:
-                self.execute_instruction(self.decoded_instruction)
+            '''
+            self.execute_instruction(self.decoded_instruction)
 
-            # ID Stage
+            '''# ID Stage
             if self.ID_stall:
                 self.decode_instruction(self.decoded_instruction)
             else:
-                self.decode_instruction(self.fetched_instruction)
-            print("NEXT:", self.next_instruction)
+            '''
+            self.decode_instruction(self.fetched_instruction)
+
             # IF Stage
             self.fetch_instruction(self.next_instruction)
 
@@ -571,9 +581,16 @@ class Processor:
         self.print_registers()
 
     def update_column(self):
+        print("Update fetched:", self.fetched_instruction)
+        print("Update decoded:", self.decoded_instruction)
+        print("Update executed:", self.executed_instruction)
+        print("Update memory:", self.memory_instruction)
+        print("Update writeback:", self.writeback_instruction)
+
         if self.fetched_instruction != "":
             row = self.find_index(self.fetched_instruction)
             col = self.clock_cycle
+            instruction = self.instruction_objects[row]
             if self.IF_stall:
                 if 'if' not in self.pipeLineResults[row]:
                     self.pipeLineResults[row][col] = "if"
@@ -585,6 +602,7 @@ class Processor:
         if self.decoded_instruction != "":
             row = self.find_index(self.decoded_instruction)
             col = self.clock_cycle
+            instruction = self.instruction_objects[row]
             if self.ID_stall:
                 if 'id' not in self.pipeLineResults[row]:
                     self.pipeLineResults[row][col] = "id"
@@ -602,7 +620,16 @@ class Processor:
                         self.pipeLineResults[row][col] = 'stall'
                     self.pipeLineResults[row][col] = "ex"
                 else:
-                    pass
+                    instruction = self.instruction_objects[row]
+                    if instruction.instruction in ["ADD.D", "SUB.D"]:
+                        output = "A" + str(2 - instruction.cycles_left)
+                        self.pipeLineResults[row][col] = output
+                    elif instruction.instruction == "MUL.D":
+                        output = "M" + str(10 - instruction.cycles_left)
+                        self.pipeLineResults[row][col] = output
+                    elif instruction.instruction == "DIV.D":
+                        output = "D" + str(40 - instruction.cycles_left)
+                        self.pipeLineResults[row][col] = output
             else:
                 if self.executed_instruction.split()[1] not in ["ADD.D", "SUB.D", "MUL.D", "DIV.D"]:
                     if self.EX_stall and 'ex' in self.pipeLineResults[row]:
@@ -610,7 +637,16 @@ class Processor:
                     else:
                         self.pipeLineResults[row][col] = "ex"
                 else:
-                    pass
+                    instruction = self.instruction_objects[row]
+                    if instruction.instruction in ["ADD.D", "SUB.D"]:
+                        output = "A" + str(2 - instruction.cycles_left)
+                        self.pipeLineResults[row][col] = output
+                    elif instruction.instruction == "MUL.D":
+                        output = "M" + str(10 - instruction.cycles_left)
+                        self.pipeLineResults[row][col] = output
+                    elif instruction.instruction == "DIV.D":
+                        output = "D" + str(40 - instruction.cycles_left)
+                        self.pipeLineResults[row][col] = output
 
         if self.memory_instruction != "":
             row = self.find_index(self.memory_instruction)
