@@ -382,6 +382,9 @@ def process_command(line):
 
     elif (line[0:3] == "L.D"):
 
+        if(line[line.index("(") + 1] != "$"):
+            line = "($".join(line.split("("))
+
         # this means all registers are in single digits
         if (len(line) == 12):
             dest = line[5]
@@ -424,11 +427,6 @@ def process_command(line):
             dest = line[5:7]
             offset = line[8:10]
             address = line[12:14]
-        print(line[0:3])
-        print("dest:",int(dest))
-        print("offset:",int(offset))
-        print("address:",int(address))
-        print(line[0:3], int(dest), int(offset), int(address))
         return line[0:3], int(dest), int(offset), int(address)
 
     elif (line[0:3] == "S.D"):
@@ -475,10 +473,12 @@ def process_command(line):
             dest = line[5:7]
             offset = line[8:10]
             address = line[12:14]
-        print(line[0:3], int(dest), int(offset), int(address))
         return line[0:3], int(dest), int(offset), int(address)
 
     elif (line[0:2] == "LW"):
+
+        if(line[line.index("(") + 1] != "$"):
+            line = "($".join(line.split("("))
 
         # to let me reuse code
         line = [] + line
@@ -604,9 +604,3 @@ def process_command(line):
         return line[0], line[2:], "", ""
 
 
-if __name__ == "__main__":
-
-    file = open("MIPS.txt")
-
-    for line in file:
-        print(process_command(line))

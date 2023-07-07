@@ -143,10 +143,9 @@ class Processor:
 
     # fetch the next instruction based on the index given
     def fetch_instruction(self, index):
-        print("Index:", index)
         if index < len(self.instructions):
             self.fetched_instruction = self.instructions[index]
-            print("fetched:", self.fetched_instruction)
+
             self.instruction_objects.append("")
             self.pipeLineResults.append([self.fetched_instruction])
             for i in range(0, self.clock_cycle + 1):
@@ -334,10 +333,10 @@ class Processor:
                         self.busy_fp_registers.remove(
                             instruction.parameter3) if instruction.parameter3 in self.busy_fp_registers else None
                         if instruction.forwarding1:
-                            print("Check:", self.forwarding_int)
+
                             instruction.parameter3 = self.forwarding_int[instruction.parameter3]
                         else:
-                            print("Check:", self.forwarding_int)
+
                             instruction.parameter3 = self.fp_registers[instruction.parameter3]
 
                 # pull the data from the registers or forwarding dictionary
@@ -514,7 +513,7 @@ class Processor:
             instruction = self.instruction_objects[self.find_index(line)]
 
             # holds true for anything that has to do with cache, irrelevant otherwise
-            print(instruction.instruction, instruction.parameter1, instruction.parameter2, instruction.parameter3)
+
             if (instruction.instruction in ["L.D", "S.D", "SW", "LW"]):
                 mem_location = (instruction.parameter3 + instruction.parameter2) % 19
                 cache_location = mem_location % 4
@@ -555,7 +554,7 @@ class Processor:
             elif (instruction.instruction == "LI"):
                 instruction.to_int_reg = instruction.parameter2
                 instruction.mem_cycles_left = 0
-                print("To_int_reg:", instruction.to_int_reg)
+
                 self.forwarding_int[instruction.parameter1] = instruction.to_int_reg
 
             # Just like L.D
@@ -600,7 +599,7 @@ class Processor:
         # failsafe against blank instruction objects (AKA empty strings)
         if line != "":
             row = self.find_index(line)
-            print(row)
+
             if 'wb' in self.pipeLineResults[row]:
                 self.writeback_instruction = ""
                 return
@@ -678,6 +677,7 @@ class Processor:
         [print(row) for row in self.pipeLineResults]
         print(" ")
         self.print_registers()
+        print(" ")
         self.print_memory()
 
     # Updates a new column
