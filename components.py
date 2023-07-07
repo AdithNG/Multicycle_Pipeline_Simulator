@@ -7,7 +7,8 @@ def process_command(line):
     #but if it is a subroutine, store the name of it and strip if from the line so it can be processed
     if(":" in line):
         subroutine = line[0:line.find(":")]
-        line = line[line.find(":") + 2:]
+        line = line[line.find(":") + 1:]
+    line = line.strip()
     
     #check for and process every command
     if(line[0:5] == "ADD.D"):
@@ -60,47 +61,47 @@ def process_command(line):
     elif(line[0:4] == "ADDI"):
 
         # this means all registers are in single digits
-        if(len(line) == 13):
+        if(len(line) == 12):
             dest = line[6]
             src1 = line[9]
-            src2 = line[12]
+            src2 = line[11]
 
         #this means one register is in double digits
-        elif(len(line) == 14):
+        elif(len(line) == 13):
             if(line[6:8].isdigit()):
                 dest = line[6:8]
                 src1 = line[10]
-                src2 = line[13]
+                src2 = line[12]
             elif(line[9:11].isdigit()):
                 dest = line[6]
                 src1 = line[9:11]
-                src2 = line[13]
+                src2 = line[12]
             else:
                 dest = line[6]
                 src1 = line[9]
-                src2 = line[12:]
+                src2 = line[11:]
 
         #this means 2 registers are in double digits
-        elif(len(line) == 15):
+        elif(len(line) == 14):
             if(line[6:8].isdigit()):
                 dest = line[6:8]
 
                 if(line[10:12].isdigit()):
                     src1 = line[10:12]
-                    src2 = line[14]
+                    src2 = line[13]
                 else:
                     src1 = line[10]
-                    src2 = line[13:]
+                    src2 = line[12:]
             else:
                 dest = line[6]
                 src1 = line[9:11]
-                src2 = line[13:]
+                src2 = line[12:]
 
         #length would be 17 and all 3 registers are in double digits
         else:
             dest = line[6:8]
             src1 = line[10:12]
-            src2 = line[14:]
+            src2 = line[13:]
 
         return line[0:4], int(dest), int(src1), int(src2)
 
@@ -587,20 +588,25 @@ def process_command(line):
         if(line[4:6].isdigit()):
            dest = line[4:6]
            if(len(line) == 9):
-               integer = line[7:]
+               immediate = line[7:]
            else:
-               integer = line[7]
+               immediate = line[7]
         else:
             dest = line[4]
-            integer = line[6:]
+            immediate = line[6:]
 
-        return line[0:2], int(dest), int(integer), None
+        return line[0:2], int(dest), int(immediate), ""
 
     elif(line[0] == "J"):
         jmp_address = line[2:]
 
-        return line[0], line[2:], None, None
+        return line[0], line[2:], "", ""
 
 
+if __name__  == "__main__":
 
+    file = open("sample_instruction.txt")
+
+    for line in file:
+        print(process_command(line))
 
