@@ -424,6 +424,10 @@ def process_command(line):
             dest = line[5:7]
             offset = line[8:10]
             address = line[12:14]
+        print(line[0:3])
+        print("dest:",int(dest))
+        print("offset:",int(offset))
+        print("address:",int(address))
         print(line[0:3], int(dest), int(offset), int(address))
         return line[0:3], int(dest), int(offset), int(address)
 
