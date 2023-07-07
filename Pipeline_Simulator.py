@@ -18,89 +18,57 @@ class Instruction:
         self.parameter1 = parameter1
         self.parameter2 = parameter2
         self.parameter3 = parameter3
-        
 
-        self.fullName = full_name
+        self.cycles_left = 0
 
         self.completed = False
 
-    def cycles_left(self, value):
-        self.cycles_left = value
-        self.completed = (self.cycles_left == 0)
+        self.shouldStall = False
+
+        self.to_mem = ""
+        self.to_int_reg = ""
+        self.to_fp_reg = ""
+        
+        self.forwarding1 = False
+        self.forwarding2 = False
+
+        #-1 denotes that it dosn't apply to instruction
+        self.mem_cycles_left = -1
+
+
+        
     
     def decode(self):
         
         if(self.instruction == "L.D"):
-            self.dest_f_register = self.parameter1
-            self.offset = self.parameter2
-            self.source_addr = self.parameter3
             self.cycles_left = 1
         elif(self.instruction == "S.D"):
-            self.source_f_register = self.parameter1
-            self.offset = self.parameter2
-            self.dest_addr = self.parameter3
             self.cycles_left = 1
         elif(self.instruction == "LI"):
-            self.dest_i_register = self.parameter1
-            self.immediate = self.parameter2
             self.cycles_left = 1
         elif(self.instruction == "LW"):
-            self.dest_i_register = self.parameter1
-            self.offset = self.parameter2
-            self.source_addr = self.parameter3
             self.cycles_left = 1
         elif(self.instruction == "SW"):
-            self.source_i_register = self.parameter1
-            self.offset = self.parameter2
-            self.dest_addr = self.parameter3
             self.cycles_left = 1
         elif(self.instruction == "ADD"):
-            self.dest_i_register = self.parameter1
-            self.source_i_register1 = self.parameter2
-            self.source_i_register2 = self.parameter3
             self.cycles_left = 1
         elif(self.instruction == "ADDI"):
-            self.dest_i_register = self.parameter1
-            self.source_i_register = self.parameter2
-            self.immediate = self.parameter3
             self.cycles_left = 1
         elif(self.instruction == "ADD.D"):
-            self.dest_f_register = self.parameter1
-            self.source_f_register1 = self.parameter2
-            self.source_f_register2 = self.parameter3
             self.cycles_left = 2
         elif(self.instruction == "SUB.D"):
-            self.dest_f_register = self.parameter1
-            self.source_f_register1 = self.parameter2
-            self.source_f_register2 = self.parameter3
             self.cycles_left = 2
         elif(self.instruction == "SUB"):
-            self.dest_i_register = self.parameter1
-            self.source_i_register1 = self.parameter2
-            self.source_i_register2 = self.parameter3
             self.cycles_left = 1
         elif(self.instruction == "MUL.D"):
-            self.dest_f_register = self.parameter1
-            self.source_f_register1 = self.parameter2
-            self.source_f_register2 = self.parameter3
             self.cycles_left = 10
         elif(self.instruction == "DIV.D"):
-            self.dest_f_register = self.parameter1
-            self.source_f_register1 = self.parameter2
-            self.source_f_register2 = self.parameter3
             self.cycles_left = 40
         elif(self.instruction == "BEQ"):
-            self.source_i_register1 = self.parameter1
-            self.source_i_register2 = self.parameter2
-            self.subroutine = self.parameter3
             self.cycles_left = 1
         elif(self.instruction == "BNE"):
-            self.source_i_register1 = self.parameter1
-            self.source_i_register2 = self.parameter2
-            self.subroutine = self.parameter3
             self.cycles_left = 1
         elif(self.instruction == "J"):
-            self.jmp_addr = self.parameter1
             self.cycles_left = 1
             
 
@@ -115,7 +83,7 @@ class Processor:
         self.fp_registers = [0.0] * 32
         self.int_registers = [0] * 32
         self.memory = [45, 12, 0, 92, 10, 135, 254, 127, 18, 4, 55, 8, 2, 98, 13, 5, 233, 158, 167]
-        self.branch_predictions = {}  # Stores branch predictions
+        self.branch_prediction = 1
         self.instructions = []
         self.instruction_objects = []
         self.next_instruction = 0
@@ -126,6 +94,8 @@ class Processor:
         self.writeback_instruction = ""
         self.busy_fp_registers = []
         self.busy_int_registers = []
+        self.forwarding_int = {}
+        self.forwarding_fp = {}
         self.clock_cycle = 0
         self.IF_stall = False
         self.ID_stall = False
@@ -171,7 +141,6 @@ class Processor:
 
     def decode_instruction(self, line):
         self.decoded_instruction = line
-        instruction = None
 
         if(line != ""):
 
@@ -179,15 +148,21 @@ class Processor:
             if 'wb' in self.pipeLineResults[row]:
                 self.decoded_instruction = ""
                 return
-            if "id" not in self.pipeLineResults[row]:
-                self.next_instruction += 1
-
+            
             name, par1, par2, par3 = process_command(line)
 
             instruction = Instruction(line, name, par1, par2, par3)
             self.instruction_objects[row] = instruction
 
-            #instruction.decode()
+            instruction.decode()
+            
+            if "id" not in self.pipeLineResults[row]:
+                if (name in ["BEQ", "BNE"] and self.branch_prediction == 1) or name == "Js":
+                    subroutine = line.split()[-1]
+                    self.next_instruction = self.subroutines[subroutine]
+                else:
+                    self.next_instruction += 1
+
 
             #second and third parameters read from registers
             if(instruction.instruction in ["ADD", "ADD.D", "SUB.D", "SUB", "MUL.D", "DIV.D"]):
@@ -199,6 +174,12 @@ class Processor:
                         self.IF_stall = True
                     else:
                         instruction.shouldStall = False
+                        self.ID_stall = False
+                        self.IF_stall = False
+                        if instruction.parameter2 in self.forwarding_int:
+                            instruction.forwarding1 = True
+                        elif instruction.parameter3 in self.forwarding_int:
+                            instruction.forwarding2 = True
                 else:
                     if(instruction.parameter2 in self.busy_fp_registers or instruction.parameter3 in self.busy_fp_registers):
                         instruction.shouldStall = True
@@ -206,6 +187,12 @@ class Processor:
                         self.IF_stall = True
                     else:
                         instruction.shouldStall = False
+                        self.ID_stall = False
+                        self.IF_stall = False
+                        if instruction.parameter2 in self.forwarding_fp:
+                            instruction.forwarding1 = True
+                        elif instruction.parameter3 in self.forwarding_fp:
+                            instruction.forwarding2 = True
 
             #first parameter reads from a register
             elif(instruction.instruction in ["S.D", "SW"]):
@@ -216,6 +203,12 @@ class Processor:
                         self.IF_stall = True
                     else:
                         instruction.shouldStall = False
+                        self.ID_stall = False
+                        self.IF_stall = False
+                        if instruction.parameter1 in self.forwarding_fp:
+                            instruction.forwarding1 = True
+                            instruction.forwarding2 = True
+                        
                 else:
                     if(instruction.parameter1 in self.busy_int_registers):
                         instruction.shouldStall = True
@@ -223,6 +216,11 @@ class Processor:
                         self.IF_stall = True
                     else:
                         instruction.shouldStall = False
+                        self.ID_stall = False
+                        self.IF_stall = False
+                        if instruction.parameter1 in self.forwarding_int:
+                            instruction.forwarding1 = True
+                            instruction.forwarding2 = True
 
             #second parameter reads from a register
             elif(instruction.instruction == "ADDI"):
@@ -232,11 +230,31 @@ class Processor:
                     self.IF_stall = True
                 else:
                     instruction.shouldStall = False
+                    self.ID_stall = False
+                    self.IF_stall = False
+                    if instruction.parameter2 in self.forwarding_int:
+                        instruction.forwarding1 = True
+                        instruction.forwarding2 = True
 
             #load from memory, since mems happen in order, there should be no hazards here
             # LI only puts it in the register in the Writeback stage, so also, no memory hazards
             elif(instruction.instruction in ["L.D", "LW", "LI"]):
-                instruction.shouldStall = False
+                if ('$' in line.split()[-1]):
+                    if instruction.parameter3 in self.busy_int_registers:
+                        instruction.shouldStall = True
+                        self.ID_stall = True
+                        self.IF_stall = True
+                    else:
+                        instruction.shouldStall = False
+                        self.ID_stall = False
+                        self.IF_stall = False
+                        if instruction.parameter3 in self.forwarding_int:
+                            instruction.forwarding1 = True
+                            instruction.forwarding2 = True
+                else:
+                    instruction.shouldStall = False
+                    self.ID_stall = False
+                    self.IF_stall = False
 
             if(instruction.instruction in ["L.D", "ADD.D", "SUB.D", "MUL.D", "DIV.D"]):
                 if not (instruction.shouldStall):
@@ -245,18 +263,111 @@ class Processor:
                 if not (instruction.shouldStall):
                     self.busy_int_registers.append(instruction.parameter1)
 
-        return line
+       
 
         
 
 
     def execute_instruction(self, line):
+        self.executed_instruction = line
+
         if line != "":
             row = self.find_index(line)
             if 'wb' in self.pipeLineResults[row]:
-                self.executed_instruction = ""
+                self.decoded_instruction = ""
                 return
-            self.executed_instruction = line
+            instruction = self.instruction_objects[self.find_index(line)]
+            
+            if(instruction.cycles_left > 1):
+                instruction.cycles_left -= 1
+            else:
+                instruction.cycles_left -= 1
+                instruction.completed = True
+                
+                if 'mem' not in self.pipeLineResults[row-1]:
+                    instruction.shouldStall = True
+                    self.EX_stall = True
+                    self.ID_stall = True
+                    self.IF_stall = True
+                
+                
+                
+                #the passes will be done in the mem stage
+                if(instruction.instruction == "L.D"):
+                    if ('$' in line.split()[-1]):
+                        self.busy_fp_registers.remove(instruction.parameter3) if instruction.parameter3 in self.busy_fp_registers else None
+                        if instruction.forwarding1:
+                            instruction.parameter3 = self.forwarding_int[instruction.parameter3]
+                            instruction.parameter3 = self.fp_registers[instruction.parameter3]
+                
+                elif(instruction.instruction == "S.D"):
+                    if instruction.forwarding1:
+                        instruction.to_mem = self.forwarding_fp[instruction.parameter1]
+                    else:
+                        instruction.to_mem = self.fp_registers[instruction.parameter1]
+                
+                elif(instruction.instruction == "LI"):
+                    pass
+                elif(instruction.instruction == "LW"):
+                    pass
+                
+                elif(instruction.instruction == "SW"):
+                    if instruction.forwarding1:
+                        instruction.to_mem = self.forwarding_int[]
+                        instruction.to_mem = self.int_registers[instruction.parameter2]
+
+                elif(instruction.instruction == "ADD"):
+                    instruction.to_int_reg = self.int_registers[instruction.parameter2] + self.int_registers[instruction.parameter3]
+                    self.forwarding_int[instruction.parameter1] = instruction.to_int_reg
+
+                elif(instruction.instruction == "ADDI"):
+                    instruction.to_int_reg = self.int_registers[instruction.parameter2] + instruction.parameter3
+                    self.forwarding_int[instruction.parameter1] = instruction.to_int_reg
+
+                elif(instruction.instruction == "ADD.D"):
+                    instruction.to_fp_reg = self.fp_registers[instruction.parameter2] + self.fp_registers[instruction.parameter3]
+                    self.forwarding_fp[instruction.parameter1] = instruction.to_fp_reg
+
+                elif(instruction.instruction == "SUB.D"):
+                    instruction.to_fp_reg = self.fp_registers[instruction.parameter2] - self.fp_registers[instruction.parameter3]
+                    self.forwarding_fp[instruction.parameter1] = instruction.to_fp_reg
+
+                elif(instruction.instruction == "SUB"):
+                    instruction.to_int_reg = self.int_registers[instruction.parameter2] - self.int_registers[instruction.parameter3]
+                    self.forwarding_int[instruction.parameter1] = instruction.to_int_reg
+
+                elif(instruction.instruction == "MUL.D"):
+                    instruction.to_fp_reg = self.fp_registers[instruction.parameter2] * self.fp_registers[instruction.parameter3]
+                    self.forwarding_fp[instruction.parameter1] = instruction.to_fp_reg
+
+                elif(instruction.instructin == "DIV.D"):
+                    instruction.to_fp_reg = self.fp_registers[instruction.parameter2] / self.fp_registers[instruction.parameter3]
+                    self.forwarding_fp[instruction.parameter1] = instruction.to_fp_reg
+
+                elif(instruction.instruction == "BEQ"):
+                    if(instruction.parameter1 == instruction.parameter2 and self.branch_prediction == 0):
+                        self.branch_prediction = 1
+                        self.flush_pipeline()
+                    elif(instruction.parameter1 != instruction.parameter2 and self.branch_prediction == 1):
+                        self.branch_prediction = 0
+                        self.flush_pipeline()
+                elif(instruction.instruction == "BNE"):
+                    if(instruction.parameter1 != instruction.parameter2 and self.branch_prediction == 0):
+                        self.branch_prediction = 1
+                        self.flush_pipeline()
+                    elif(instruction.parameter1 == instruction.parameter2 and self.branch_prediction == 1):
+                        self.branch_prediction = 0
+                        self.flush_pipeline()
+                elif(instruction.instruction == "J"):
+                    pass
+                
+                if instruction.instruction in ["ADD.D","SUB.D","MUL.D","DIV.D"]:
+                    self.busy_fp_registers.remove(instruction.parameter1) if instruction.parameter1 in self.busy_fp_registers else None
+                    self.forwarding_fp[instruction.parameter1] = instruction.to_fp_reg 
+                else:
+                    self.busy_int_registers.remove(instruction.parameter1) if instruction.parameter1 in self.busy_int_registers else None
+                    self.forwarding_int[instruction.parameter1] = instruction.to_int_reg
+
 
     def mem_instruction(self, line):
         if line != "":
@@ -266,6 +377,86 @@ class Processor:
                 return
             self.memory_instruction = line
 
+            instruction = self.instruction_objects[self.find_index(line)]
+
+
+            #holds true for anything that has to do with cache, irrelevant otherwise
+            cache_location = ((instruction.parameter3 + instruction.parameter2) % 19) % 4
+            mem_location = (instruction.parameter3 + instruction.parameter2) % 19
+            
+            if(instruction.instruction == "L.D"):
+                #first time trying to check cache
+                if(instruction.mem_cycles_left == -1):
+                    
+                    #hit
+                    if(self.cache[cache_location][0] == mem_location):
+                        mem_cycles_left = 0
+                        instruction.to_fp_reg = self.cache[cache_location][1]
+                        self.forwarding_fp[instruction.parameter1] = instruction.to_fp_reg
+                        
+                    #miss
+                    else:
+                        mem_cycles_left = 2
+
+                #still under penalty
+                elif(instruction.mem_cycles_left == 2):
+                    instruction.mem_cycles_left -= 1
+                elif(instruction.mem_cycles_left == 1):
+
+                    #penalty for miss served, now load from memory and place in cache
+                    instruction.mem_cycles_left -= 1
+                    instruction.to_fp_reg = self.memory[mem_location]
+                    self.cache[cache_location] == (mem_location, instruction.to_fp_reg)
+                    self.forwarding_fp[instruction.parameter1] = instruction.to_fp_reg
+
+            #store in memory location and cache
+            elif(instruction.instruction == "S.D"):
+                self.memory[mem_location] = instruction.to_mem
+                self.cache[cache_location] = (mem_location, instruction.to_mem)
+                instruction.mem_cycles_left = 0
+            
+            #no actual memory involved, just get ready to store in register
+            elif(instruction.instruction == "LI"):
+                instruction.to_int_reg == self.parameter2
+                instruction.mem_cycles_left = 0
+                self.forwarding_int[instruction.parameter1] = instruction.to_int_reg
+
+            elif(instruction.instruction == "LW"):
+                #first time trying to check cache
+                if(instruction.mem_cycles_left == -1):
+                    
+                    #hit
+                    if(self.cache[cache_location][0] == mem_location):
+                        mem_cycles_left = 0
+                        instruction.to_int_reg = self.cache[cache_location][1]
+                        self.forwarding_int[instruction.parameter1] = instruction.to_int_reg
+                    #miss
+                    else:
+                        mem_cycles_left = 2
+
+                #still under penalty
+                elif(instruction.mem_cycles_left == 2):
+                    instruction.mem_cycles_left -= 1
+                elif(instruction.mem_cycles_left == 1):
+
+                    #penalty for miss served, now load from memory and place in cache
+                    instruction.mem_cycles_left -= 1
+                    instruction.to_int_reg = self.memory[mem_location]
+                    self.cache[cache_location] == (mem_location, instruction.to_fp_reg)
+                    self.forwarding_int[instruction.parameter1] = instruction.to_int_reg
+
+            #store in memory and cache
+            elif(instruction.intruction == "SW"):
+                self.memory[mem_location] = instruction.to_mem
+                self.cache[cache_location] = (mem_location, instruction.to_mem)
+                instruction.mem_cycles_left = 0
+                
+            #none of the other instructions need to go into memory
+            else:
+                instruction.mem_cycles_left == 0
+
+                
+
     def writeBack_instruction(self, line):
         if line != "":
             row = self.find_index(line)
@@ -274,6 +465,17 @@ class Processor:
                 self.writeback_instruction = ""
                 return
             self.writeback_instruction = line
+
+
+
+            if(instruction.instruction in ["L.D", "ADD.D", "SUB.D", "MUL.D", "DIV.D"]):
+                self.fp_registers[instruction.parameter1] = instruction.to_fp_reg 
+            elif(instruction.instruction in ["LI", "LW", "ADD", "SUB", "ADDI"]):
+                self.int_registers_registers[instruction.parameter1] = instruction.to_int_reg
+
+        
+
+        
 
     def execute_fp_add(self, dest_reg, src_reg1, src_reg2):
         self.fp_registers[dest_reg] = self.fp_registers[src_reg1] + self.fp_registers[src_reg2]
@@ -346,13 +548,9 @@ class Processor:
             #self.fetch_instruction(correct_instruction)
 
     def flush_pipeline(self):
-        # Assuming there are pipeline stages represented by variables or data structures
-        # that hold the fetched, decoded, and executed instructions
-
-        # Example implementation assuming a simple 3-stage pipeline
-        self.fetched_instruction = []  # Or pop the last element?
-        self.decoded_instruction = []
-        self.executed_instruction = []
+        self.fetched_instruction = ""  # 
+        self.decoded_instruction = ""
+        self.executed_instruction = ""
 
     def print_registers(self):
         print("Integer Registers:")
@@ -389,14 +587,12 @@ class Processor:
                 self.decode_instruction(self.fetched_instruction)
                 
             # IF Stage
-            if self.IF_stall:
-                self.fetch_instruction(self.fetched_instruction)
-            else:
-                self.fetch_instruction(self.next_instruction)
+            self.fetch_instruction(self.next_instruction)
             
             self.clock_cycle += 1
             self.update_column()
         [print(row) for row in self.pipeLineResults]
+        self.print_registers()
 
 
     def update_column(self):
@@ -427,12 +623,17 @@ class Processor:
             col = self.clock_cycle
             if self.executed_instruction[:5] != "Loop:":
                 if self.executed_instruction[:5] not in ["ADD.D", "SUB.D", "MUL.D", "DIV.D"]:
+                    if self.EX_stall and 'ex' in self.pipeLineResults[row]:
+                        self.pipeLineResults[row][col] = 'stall'
                     self.pipeLineResults[row][col] = "ex"
                 else:
                     pass
             else:
                 if self.executed_instruction.split()[1] not in ["ADD.D", "SUB.D", "MUL.D", "DIV.D"]:
-                    self.pipeLineResults[row][col] = "ex"
+                    if self.EX_stall and 'ex' in self.pipeLineResults[row]:
+                        self.pipeLineResults[row][col] = 'stall'
+                    else:
+                        self.pipeLineResults[row][col] = "ex"
                 else:
                     pass
                     
